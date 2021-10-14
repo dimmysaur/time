@@ -1,0 +1,87 @@
+extends Broken arm
+signal health_updateed(health)
+const UP = Vector2(0,1)
+const Maxspeed = 180
+const maxfallspeed = 500
+var motion = Vector2()
+const Gravity = 20
+const JumpForce = -500
+var friction = 0.1
+var acceleration = 0.2
+var GroundCheck = 0
+var state_machine
+var animation_player
+var Bullet = preload("res://Bullet.tscn") 
+export (float) var max_health = 100
+onready var health = max_health setget _set_health
+onready var InvulT = $invulnaberity
+# Declare member variables here. Examples:
+# var a = 2
+# var b = "text"
+
+onready var healthbar = $HealthBar/Healthbar
+onready var healthbarp = $HealthBar
+# Called when the node enters the scene tree for the first time.
+func _ready():
+	state_machine = $AnimationTree.get("parameters/playback")
+	animation_player = $AnimationPlayer.current_animation
+	 # Replace with function body.
+func _on_health_updated(health, amount):
+	healthbar.value = amount
+func _on_max_healh_updated(max_health):
+	healthbar.max_value = max_health
+func _physics_process(_delta):
+	var dir = 0
+	if Input.is_action_pressed("up"):
+		$Sprite/gun/muzzle.rotation_degrees = -90
+		$Sprite/gun.rotation_degrees = -90
+	motion.y += Gravity
+	if motion.y > maxfallspeed:
+		motion.y = maxfallspeed
+	if Input.is_action_pressed("left"):
+		dir -= 1
+		$Sprite.scale.x = -1
+		$Sprite/gun.rotation_degrees = 180
+		$Sprite/gun/muzzle.rotation_degrees = 180
+	elif Input.is_action_pressed("right"):
+		
+		dir += 1
+		$Sprite.scale.x = 1
+		$Sprite/gun.rotation_degrees = 0
+		$Sprite/gun/muzzle.rotation_degrees = 0
+	else:
+		dir = 0
+		
+	motion = move_and_slide(motion, Vector2.UP)
+
+	if Input.is_action_just_pressed("shoot") and $CooldownShoot.is_stopped():
+		var bulleti = Bullet.instance()
+		owner.add_child(bulleti)
+		bulleti.transform = $Sprite/gun/muzzle.global_transform
+		$CooldownShoot.start()
+
+	if Input.is_action_just_pressed("jump") and is_on_floor():
+		motion.y = JumpForce
+		damage(10)
+		
+	if dir != 0:
+		motion.x = lerp(motion.x, dir * Maxspeed, acceleration)
+	else:
+		motion.x = lerp(motion.x, 0, friction)
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+#func _process(delta):
+#	pass
+func kill():
+	pass
+	print_debug("NOOO")
+func damage(amount):
+	if InvulT.is_stopped():
+		InvulT.start()
+	_set_health(health - amount)
+func _set_health(value):
+	var prevhealth = health
+	health = clamp(value, 0, max_health)
+	print_debug(health)
+	emit_signal("health_updated", health)
+	if health == 0:
+		kill()
